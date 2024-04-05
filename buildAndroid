@@ -72,8 +72,8 @@ if want_sdk:
 
 
 for arch in build_for_archs:
-    exec(&"xmake f --ndk_sdkver={android_legacy_platform} -qy -p android -m release -a {arch}")
-    exec("xmake build -qy jni-main")
+    exec(&"xmake f --ndk_sdkver={android_legacy_platform} -y -p android -m release -a {arch}")
+    exec("xmake build -y jni-main")
     mkDir(&"build/apk/lib/{arch}")
     for path in walkDirRec(&"build/android/{arch}"):
         if path.endsWith(".so"):
