@@ -15,8 +15,8 @@ const
     android_target_platform = getEnv("ANDROID_TARGET_PLATFORM", "34")
     android_host_os = getEnv("ANDROID_HOST_OS", "linux-x86_64")
     key_store = getEnv("KEY_STORE", "debug.keystore") # key store with "release" key
-    ks_pass = getEnv("KS_PASS", "pass:mypassword") # password for the key store
-    key_pass = getEnv("KEY_PASS", "pass:mypassword") # password for the key key (yes, it is)
+    ks_pass = getEnv("KS_PASS", "mypassword") # password for the key store
+    key_pass = getEnv("KEY_PASS", "mypassword") # password for the key key (yes, it is)
     cmake_version = getEnv("ANDROID_CMAKE_VERSION", "3.22.1")
     ndk_root = android_home / "ndk" / ndk_version
     toolchain_path = ndk_root / "toolchains/llvm/prebuilt" / android_host_os / "bin"
@@ -94,6 +94,13 @@ exec("zipalign -f 4 apk-unaligned.apk apk-unsigned.apk")
 
 if (key_store == "debug.keystore"):
     rmFile("debug.keystore")
-    exec(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass {ks_pass} -keypass {key_pass} -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
+    echo(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass {ks_pass} -keypass {key_pass} -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
+    exec(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
 
-exec(&"""apksigner sign --ks {key_store} --ks-pass {ks_pass} --key-pass {key_pass} --out app.apk apk-unsigned.apk
+exec(&"""apksigner sign --ks {key_store} --ks-pass pass:{ks_pass} --key-pass pass:{key_pass} --out app.apk apk-unsigned.apk""")
+
+rmFile("apk-unsigned.apk")
+rmFile("apk-unaligned.apk")
+rmFile("app.apk.idsig")
+rmDir("build")
+rmDir(".xmake")
