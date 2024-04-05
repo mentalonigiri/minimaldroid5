@@ -94,7 +94,6 @@ exec("zipalign -f 4 apk-unaligned.apk apk-unsigned.apk")
 
 if (key_store == "debug.keystore"):
     rmFile("debug.keystore")
-    echo(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass {ks_pass} -keypass {key_pass} -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
     exec(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
 
 exec(&"""apksigner sign --ks {key_store} --ks-pass pass:{ks_pass} --key-pass pass:{key_pass} --out app.apk apk-unsigned.apk""")
