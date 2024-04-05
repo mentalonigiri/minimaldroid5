@@ -30,6 +30,10 @@ const
         &"tools",
         &"platforms/android-{android_target_platform}"
     ]
+    begindir = getCurrentDir()
+
+# dir setup
+cd(thisDir())
 
 # env setup
 putEnv("ANDROID_HOME", android_home)
@@ -104,3 +108,5 @@ rmFile("app.apk.idsig")
 rmFile("debug.keystore")
 rmDir("build")
 rmDir(".xmake")
+
+cd(begindir)
