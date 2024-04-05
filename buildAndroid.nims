@@ -101,5 +101,6 @@ exec(&"""apksigner sign --ks {key_store} --ks-pass pass:{ks_pass} --key-pass pas
 rmFile("apk-unsigned.apk")
 rmFile("apk-unaligned.apk")
 rmFile("app.apk.idsig")
+rmFile("debug.keystore")
 rmDir("build")
 rmDir(".xmake")
