@@ -10,6 +10,7 @@ or read the documentation in buildAndroid nim script. Let's list the requirement
 1. sdkmanager (pip install sdkmanager)
 1. xmake
 1. Nim programming language
+1. openjdk
 
 ## Building
 run `./build-android.sh`
