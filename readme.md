@@ -13,7 +13,7 @@ or read the documentation in buildAndroid nim script. Let's list the requirement
 1. openjdk
 
 ## Building
-run `./build-android.sh`
+run `./build.nims` or on windows you can try `nim build.nims`
 
 ## donate
 If you want to say "thanks", feel free to donate some monero:
