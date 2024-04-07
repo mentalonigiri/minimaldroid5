@@ -17,6 +17,7 @@ const
     key_store = getEnv("KEY_STORE", "debug.keystore") # key store with "release" key
     ks_pass = getEnv("KS_PASS", "mypassword") # password for the key store
     key_pass = getEnv("KEY_PASS", "mypassword") # password for the key key (yes, it is)
+    key_alias = getEnv("KEY_ALIAS", "debug")
     cmake_version = getEnv("ANDROID_CMAKE_VERSION", "3.22.1")
     ndk_root = android_home / "ndk" / ndk_version
     toolchain_path = ndk_root / "toolchains/llvm/prebuilt" / android_host_os / "bin"
@@ -74,6 +75,15 @@ proc installAndroidSdk() =
 if want_sdk:
    installAndroidSdk()
 
+# install bundletool
+const bundletool_fpath = home / ".cache/bundletool.jar"
+
+mkDir(home / ".cache")
+if not fileExists(home / ".cache/bundletool.jar"):
+    echo("downloading bundletool...")
+    var (outp, exitCode) = system.gorgeEx(&"""curl -L -o {home / ".cache/bundletool0.jar"} --retry 50 --retry-delay 10 --retry-max-time 60 -C - 'https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar'""")
+    if exitCode == 0:
+        mvFile(home / ".cache/bundletool0.jar", bundletool_fpath)
 
 for arch in build_for_archs:
     exec(&"xmake f --ndk_sdkver={android_legacy_platform} -y -p android -m release -a {arch}")
@@ -92,15 +102,50 @@ for arch in build_for_archs:
                     let destPath = &"build/apk/lib/{arch}/{extractFilename(path)}"
                     cpFile(path, destPath)
 
-exec(&"""aapt package -f -M AndroidManifest.xml -I {android_home}/platforms/android-{android_target_platform}/android.jar -S res -F apk-unaligned.apk build/apk""")
+# exec(&"""aapt package -f -M AndroidManifest.xml -I {android_home}/platforms/android-{android_target_platform}/android.jar -S res -F apk-unaligned.apk build/apk""")
 
-exec("zipalign -f 4 apk-unaligned.apk apk-unsigned.apk")
+exec(&"""aapt2 compile --dir res -o build/res.zip""")
+exec(fmt"""aapt2 link --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} --proto-format -o build/aab-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
+    --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
+exec(fmt"""aapt2 link --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} -o build/apk-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
+    --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
+exec(&"""javac -d build/obj -cp "{android_home}/platforms/android-{android_target_platform}/android.jar:java" -sourcepath java java/org/libsdl/app/*.java java/org/bakacorp/game/*.java""")
+
+mkDir("build/dex")
+exec(&"""d8 --release --min-api {android_legacy_platform} --lib "{android_home}/platforms/android-{android_target_platform}/android.jar" --output build/dex build/obj/**/**/**/*.class""")
+
+cd("build")
+
+rmDir("lib")
+mvDir("apk/lib", "lib")
+exec(&"""zip -r apk-unaligned.apk dex""")
+exec(&"""zip -r apk-unaligned.apk lib""")
+
+exec(&"""jar xf aab-unaligned.apk resources.pb AndroidManifest.xml res""")
+mkDir("manifest")
+mvFile("AndroidManifest.xml", "manifest/AndroidManifest.xml")
+# for path in walkDirRec("dex"):
+#     if path.endsWith(".dex"):
+#         let destPath = &"dex/{extractFilename(path)}"
+#         cpFile(path, destPath)
+
+exec("jar cMf base.zip manifest lib dex res resources.pb")
+
+
+rmFile("../app.aab")
+exec(&"""java -jar {bundletool_fpath} build-bundle --modules=base.zip --output=../app.aab""")
+
+cd("..")
 
 if (key_store == "debug.keystore"):
     rmFile("debug.keystore")
-    exec(&"""keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
+    exec(&"""keytool -genkey -v -keystore debug.keystore -alias {key_alias} -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
 
-exec(&"""apksigner sign --ks {key_store} --ks-pass pass:{ks_pass} --key-pass pass:{key_pass} --out app.apk apk-unsigned.apk""")
+exec(&"""jarsigner -keystore {key_store} -storepass {ks_pass} -keypass {key_pass} app.aab {key_alias}""")
+
+exec("zipalign -f 4 build/apk-unaligned.apk build/apk-unsigned.apk")
+
+exec(&"""apksigner sign --ks {key_store} --ks-pass pass:{ks_pass} --key-pass pass:{key_pass} --out app.apk build/apk-unsigned.apk""")
 
 rmFile("apk-unsigned.apk")
 rmFile("apk-unaligned.apk")
