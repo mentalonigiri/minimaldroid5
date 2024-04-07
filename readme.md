@@ -1,9 +1,14 @@
-# minimaldroid3
+# minimaldroid4
 
 This is minimal example building android project without
 gradle. It uses xmake under the hood. Also you should
 have sdkmanager command installed (pip install sdkmanager)
-or read the documentation in buildAndroid nim script. Let's list the requirements.
+or read the documentation in build.nims nim script. 
+
+## Screenshot of app I built
+![screenshot](./screenshot/screenshot.jpg)
+It has SDL2 java and c++ and xmake integration.
+(the same you'll get by building this project)
 
 ## Requirements to build for Android
 1. git
