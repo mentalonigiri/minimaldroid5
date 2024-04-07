@@ -4,17 +4,25 @@ import os
 import strutils
 import strformat
 
+# calculate automatic app version
+var auto_app_version = (CompileDate & CompileTime)
+auto_app_version = auto_app_version.replace("-", "").replace(":", "")
+auto_app_version = (auto_app_version.parseInt() div 2100000000).intToStr()
+
+var app_version = getEnv("APP_VERSION", auto_app_version)
+
 # override variables from environment instead of editing the code
 const
     home = getHomeDir()
     android_home = getEnv("ANDROID_HOME", home / "Android/Sdk")
+    debug_key_store = home / ".cache/androiddev-debug-keystore.ks"
     ndk_version = getEnv("ANDROID_NDK_VERSION", "26.2.11394342")
-    build_for_archs = getEnv("BUILD_FOR_ARCHS", "x86_64,armeabi,armeabi-v7a,arm64-v8a").split(",")
+    build_for_archs = getEnv("BUILD_FOR_ARCHS", "x86_64,armeabi-v7a,arm64-v8a").split(",")
     buildtools_version = getEnv("ANDROID_BUILDTOOLS_VERSION", "34.0.0")
     android_legacy_platform = getEnv("ANDROID_LEGACY_PLATFORM", "21")
     android_target_platform = getEnv("ANDROID_TARGET_PLATFORM", "34")
     android_host_os = getEnv("ANDROID_HOST_OS", "linux-x86_64")
-    key_store = getEnv("KEY_STORE", "debug.keystore") # key store with "release" key
+    key_store = getEnv("KEY_STORE", debug_key_store) # key store with "release" key
     ks_pass = getEnv("KS_PASS", "mypassword") # password for the key store
     key_pass = getEnv("KEY_PASS", "mypassword") # password for the key key (yes, it is)
     key_alias = getEnv("KEY_ALIAS", "debug")
@@ -105,20 +113,26 @@ for arch in build_for_archs:
 # exec(&"""aapt package -f -M AndroidManifest.xml -I {android_home}/platforms/android-{android_target_platform}/android.jar -S res -F apk-unaligned.apk build/apk""")
 
 exec(&"""aapt2 compile --dir res -o build/res.zip""")
-exec(fmt"""aapt2 link --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} --proto-format -o build/aab-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
+exec(fmt"""aapt2 link --version-name "{app_version}.0" --version-code {app_version} --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} --proto-format -o build/aab-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
     --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
-exec(fmt"""aapt2 link --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} -o build/apk-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
+exec(fmt"""aapt2 link --version-name "{app_version}.0" --version-code {app_version} --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} -o build/apk-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
     --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
 exec(&"""javac -d build/obj -cp "{android_home}/platforms/android-{android_target_platform}/android.jar:java" -sourcepath java java/org/libsdl/app/*.java java/org/bakacorp/game/*.java""")
 
 mkDir("build/dex")
 exec(&"""d8 --release --min-api {android_legacy_platform} --lib "{android_home}/platforms/android-{android_target_platform}/android.jar" --output build/dex build/obj/**/**/**/*.class""")
 
+exec("zip -r build/apk-unaligned.apk assets")
+
 cd("build")
 
 rmDir("lib")
 mvDir("apk/lib", "lib")
-exec(&"""zip -r apk-unaligned.apk dex""")
+
+cd("dex")
+exec(&"""zip -r ../apk-unaligned.apk *""")
+cd("..")
+
 exec(&"""zip -r apk-unaligned.apk lib""")
 
 exec(&"""jar xf aab-unaligned.apk resources.pb AndroidManifest.xml res""")
@@ -129,7 +143,7 @@ mvFile("AndroidManifest.xml", "manifest/AndroidManifest.xml")
 #         let destPath = &"dex/{extractFilename(path)}"
 #         cpFile(path, destPath)
 
-exec("jar cMf base.zip manifest lib dex res resources.pb")
+exec("jar cMf base.zip manifest lib dex res ../assets resources.pb")
 
 
 rmFile("../app.aab")
@@ -137,9 +151,9 @@ exec(&"""java -jar {bundletool_fpath} build-bundle --modules=base.zip --output=.
 
 cd("..")
 
-if (key_store == "debug.keystore"):
-    rmFile("debug.keystore")
-    exec(&"""keytool -genkey -v -keystore debug.keystore -alias {key_alias} -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
+if (key_store == debug_key_store):
+    if not fileExists(debug_key_store):
+        exec(&"""keytool -genkey -v -keystore "{debug_key_store}" -alias {key_alias} -keyalg RSA -keysize 2048 -validity 10000 -storepass "{ks_pass}" -keypass "{key_pass}" -dname "CN=John Doe, OU=Mobile Development, O=My Company, L=New York, ST=NY, C=US" -noprompt""")
 
 exec(&"""jarsigner -keystore {key_store} -storepass {ks_pass} -keypass {key_pass} app.aab {key_alias}""")
 

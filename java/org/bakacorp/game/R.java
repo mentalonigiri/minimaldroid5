@@ -5,7 +5,7 @@
  * should not be modified by hand.
  */
 
-package com.dndtools.android.dndtools;
+package org.bakacorp.game;
 
 public final class R {
   public static final class color {
