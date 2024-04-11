@@ -1,4 +1,4 @@
-# minimaldroid4
+# minimaldroid5
 
 This is minimal example building android project without
 gradle. It uses xmake under the hood. Also you should
@@ -16,6 +16,7 @@ It has SDL2 java and c++ and xmake integration.
 1. xmake
 1. Nim programming language
 1. openjdk
+1. sbt (scala, scala build tool)
 
 ## Building
 run `./build.nims` or on windows you can try `nim build.nims`
