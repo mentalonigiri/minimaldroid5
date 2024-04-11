@@ -48,6 +48,7 @@ cd(thisDir())
 putEnv("ANDROID_HOME", android_home)
 putEnv("ANDROID_SDK_ROOT", android_home)
 putEnv("ANDROID_NDK_ROOT", ndk_root)
+putEnv("ANDROID_TARGET_PLATFORM", android_target_platform)
 
 # PATH setup
 putEnv("PATH", &"{toolchain_path}:{buildtools_path}:{path}")
@@ -117,10 +118,12 @@ exec(fmt"""aapt2 link --version-name "{app_version}.0" --version-code {app_versi
     --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
 exec(fmt"""aapt2 link --version-name "{app_version}.0" --version-code {app_version} --min-sdk-version {android_legacy_platform} --target-sdk-version {android_target_platform} -o build/apk-unaligned.apk -I "{android_home}/platforms/android-{android_target_platform}/android.jar"
     --manifest AndroidManifest.xml --java java build/res.zip --auto-add-overlay""".replace("\n", " "))
-exec(&"""javac -d build/obj -cp "{android_home}/platforms/android-{android_target_platform}/android.jar:java" -sourcepath java java/org/libsdl/app/*.java java/org/bakacorp/game/*.java""")
+# exec(&"""javac -d build/obj -cp "{android_home}/platforms/android-{android_target_platform}/android.jar:java" -sourcepath java java/org/libsdl/app/*.java java/org/bakacorp/game/*.java""")
+
+exec("sbt compile")
 
 mkDir("build/dex")
-exec(&"""d8 --release --min-api {android_legacy_platform} --lib "{android_home}/platforms/android-{android_target_platform}/android.jar" --output build/dex build/obj/**/**/**/*.class""")
+exec(&"""d8 --release --min-api {android_legacy_platform} --lib "{android_home}/platforms/android-{android_target_platform}/android.jar" --output build/dex target/scala-*/classes/**/**/**/*.class""")
 
 exec("zip -r build/apk-unaligned.apk assets")
 
@@ -167,5 +170,7 @@ rmFile("app.apk.idsig")
 rmFile("debug.keystore")
 rmDir("build")
 rmDir(".xmake")
+rmDir("target")
+rmDir("project")
 
 cd(begindir)
